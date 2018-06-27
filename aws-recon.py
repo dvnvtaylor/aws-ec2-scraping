@@ -10,21 +10,29 @@ parser = argparse.ArgumentParser(description='perform aws reconnaissance via api
 parser.add_argument("-p", "--public", action="store_true", help="use to only extract information about objects that are internet-facing/publicly accessible. without this flag, only internal, privately addressed resources will be returned")
 args = parser.parse_args()
 
-def pull_eelb (sesh): # External Elastic Load Balancers
+def pull_elb (sesh): # Elastic Load Balancers
 	client = sesh.client('elb')
 	response = client.describe_load_balancers()
 	for item in response["LoadBalancerDescriptions"]:
 		dns = item["DNSName"]
-		if "internal" not in dns:
-			print(dns)
+		if args.public:
+			if "internal" not in dns:
+				print(dns)
+		else:
+			if "internal" in dns:
+				print(dns)
 
-def pull_ealb (sesh): # External Application Load Balancers
+def pull_alb (sesh): # Application Load Balancers
 	client = sesh.client('elbv2')
 	response = client.describe_load_balancers()
 	for item in response["LoadBalancers"]:
 		dns = item["DNSName"]
-		if "internal" not in dns:
-			print(dns)
+		if args.public:
+			if "internal" not in dns:
+				print(dns)
+		else:
+			if "internal" in dns:
+				print(dns)
 
 def pull_eip (sesh): # External Elastic IP Addresses
 	client = sesh.client('ec2')
@@ -32,22 +40,6 @@ def pull_eip (sesh): # External Elastic IP Addresses
 	for item in response["Addresses"]:
 		pub = item["PublicIp"]
 		print(pub)
-
-def pull_ielb (sesh): # Internal Elastic Load Balancers
-	client = sesh.client('elb')
-	response = client.describe_load_balancers()
-	for item in response["LoadBalancerDescriptions"]:
-		dns = item["DNSName"]
-		if "internal" in dns:
-			print(dns)
-
-def pull_ialb (sesh): # Internal Application Load Balancers
-	client = sesh.client('elbv2')
-	response = client.describe_load_balancers()
-	for item in response["LoadBalancers"]:
-		dns = item["DNSName"]
-		if "internal" in dns:
-			print(dns)
 
 def pull_pip (sesh): # Internal EC2 IP Addresses
 	client = sesh.client('ec2')
@@ -63,11 +55,9 @@ def pull_pip (sesh): # Internal EC2 IP Addresses
 for acct in profiles:
 	for az in regions:
 		sesh = boto3.session.Session(region_name = az, profile_name = acct)
+		pull_elb(sesh)
+		pull_alb(sesh)
 		if args.public:
-			pull_eelb(sesh)
-			pull_ealb(sesh)
 			pull_eip(sesh)
 		else:
-			pull_ielb(sesh)
-			pull_ialb(sesh)
 			pull_pip(sesh)
