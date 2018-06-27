@@ -1,14 +1,24 @@
-import boto3
-import sys
-import argparse
-import csv
+import boto3, sys, argparse, csv, re, string
+from pathlib import Path 
 
 regions=["us-east-1","us-east-2","us-west-1","us-west-2", "ca-central-1","ap-south-1","ap-northeast-2","ap-southeast-1", "ap-southeast-2","ap-northeast-1","eu-central-1","eu-west-1","eu-west-2","sa-east-1"]
-profiles=['prod','qa']
-
+home = str(Path.home())
+profiles = []
 parser = argparse.ArgumentParser(description='perform aws reconnaissance via api scraping')
 parser.add_argument("-p", "--public", action="store_true", help="use to only extract information about objects that are internet-facing/publicly accessible. without this flag, only internal, privately addressed resources will be returned")
 args = parser.parse_args()
+
+try:
+	f = open(home+"/.aws/config","r")
+except FileNotFoundError:
+	print("AWS config file not found")
+	exit()
+except PermissionError:
+	print("Permission error reading AWS config file")
+	exit()
+
+if f.mode == 'r': contents = f.read(); f.close()
+for i in re.findall("(?:profile).*\w",contents): profiles.append(i.split(' ')[1])
 
 def pull_elb (sesh): # Elastic Load Balancers
 	client = sesh.client('elb')
