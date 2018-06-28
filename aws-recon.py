@@ -71,7 +71,6 @@ def pull_pip (sesh): # Internal EC2 IP Addresses
 			priv = inst.private_ip_address
 			print(priv)
 
-
 for acct in profiles:
 	for az in regions:
 		print("profile:",acct,"-- region:",az)
