@@ -1,7 +1,8 @@
 import boto3, sys, argparse, csv, re, string
-from pathlib import Path 
+from pathlib import Path
+from boto3.session import Session
 
-regions=["us-east-1","us-east-2","us-west-1","us-west-2", "ca-central-1","ap-south-1","ap-northeast-2","ap-southeast-1", "ap-southeast-2","ap-northeast-1","eu-central-1","eu-west-1","eu-west-2","sa-east-1"]
+regions = Session().get_available_regions('ecs')
 home = str(Path.home())
 profiles = []
 parser = argparse.ArgumentParser(description='perform aws reconnaissance via api scraping')
@@ -61,9 +62,9 @@ def pull_pip (sesh): # Internal EC2 IP Addresses
 			priv = inst.private_ip_address
 			print(priv)
 
-
 for acct in profiles:
 	for az in regions:
+		print("profile:",acct,"-- region:",az)
 		sesh = boto3.session.Session(region_name = az, profile_name = acct)
 		pull_elb(sesh)
 		pull_alb(sesh)
