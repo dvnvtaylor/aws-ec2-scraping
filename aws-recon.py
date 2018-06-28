@@ -1,24 +1,34 @@
 import boto3, sys, argparse, csv, re, string
-from pathlib import Path 
+from pathlib import Path
+from boto3.session import Session
+from botocore.exceptions import ClientError
 
-regions=["us-east-1","us-east-2","us-west-1","us-west-2", "ca-central-1","ap-south-1","ap-northeast-2","ap-southeast-1", "ap-southeast-2","ap-northeast-1","eu-central-1","eu-west-1","eu-west-2","sa-east-1"]
+regions = Session().get_available_regions('ecs')
 home = str(Path.home())
 profiles = []
+contents = ""
 parser = argparse.ArgumentParser(description='perform aws reconnaissance via api scraping')
+parser.add_argument("credsfile", help="specify whether to read creds from the 'credentials' or 'config' file found in ~./aws/")
 parser.add_argument("-p", "--public", action="store_true", help="use to only extract information about objects that are internet-facing/publicly accessible. without this flag, only internal, privately addressed resources will be returned")
 args = parser.parse_args()
 
+def extractProfiles(home, args, profiles, contents):
+	f = open(home+"/.aws/"+args.credsfile,"r")
+	if f.mode == 'r': contents = f.read(); f.close()
+	if args.credsfile == "config":
+		if "default" in contents: profiles.append("default")
+		for i in re.findall("(?:profile).*\w",contents): profiles.append(i.split(' ')[1])
+	if args.credsfile == "credentials":
+		for i in re.findall("\[([a-zA-Z0-9-\s]+)\]",contents): profiles.append(i)
+
 try:
-	f = open(home+"/.aws/config","r")
+	extractProfiles(home, args, profiles, contents)
 except FileNotFoundError:
-	print("AWS config file not found")
+	print("specified file not found. it might not exist, or you misspelt. specify either 'config' or 'credentials'")
 	exit()
 except PermissionError:
-	print("Permission error reading AWS config file")
+	print("you don't have permission to access",args.credsfile)
 	exit()
-
-if f.mode == 'r': contents = f.read(); f.close()
-for i in re.findall("(?:profile).*\w",contents): profiles.append(i.split(' ')[1])
 
 def pull_elb (sesh): # Elastic Load Balancers
 	client = sesh.client('elb')
@@ -64,10 +74,19 @@ def pull_pip (sesh): # Internal EC2 IP Addresses
 
 for acct in profiles:
 	for az in regions:
+		print("profile:",acct,"-- region:",az)
 		sesh = boto3.session.Session(region_name = az, profile_name = acct)
-		pull_elb(sesh)
-		pull_alb(sesh)
-		if args.public:
-			pull_eip(sesh)
-		else:
-			pull_pip(sesh)
+		try:
+			pull_elb(sesh)
+			pull_alb(sesh)
+			if args.public:
+				pull_eip(sesh)
+			else:
+				pull_pip(sesh)
+		except ClientError as err:
+			if "InvalidClientTokenId" in str(err):
+				print("invalid credentials")
+				pass
+			else:
+				print(err)
+				pass
