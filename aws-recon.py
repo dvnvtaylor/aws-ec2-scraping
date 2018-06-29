@@ -8,12 +8,14 @@ home = str(Path.home())
 profiles = []
 contents = ""
 parser = argparse.ArgumentParser(description='perform aws reconnaissance via api scraping')
-parser.add_argument("credsfile", help="specify whether to read creds from the 'credentials' or 'config' file found in ~./aws/")
+parser.add_argument("credsfile", help="specify whether to use keys found in the 'credentials' or 'config' file, both located in ~/.aws/")
 parser.add_argument("-p", "--public", action="store_true", help="use to only extract information about objects that are internet-facing/publicly accessible. without this flag, only internal, privately addressed resources will be returned")
-parser.add_argument("-o", "--output", help="use --output <file.csv> to write. defaults to stdout")
+parser.add_argument("-o", "--output", help="use --output <file.csv> to write to a csv file. without this, default output is to stdout")
+parser.add_argument("-lb", "--loadbalancers", action="store_true", help="use this flag to pull dns names from classic and application load balancers")
+parser.add_argument("-v", "--verbose", action="store_true", help="use this flag to output profile, region, and service blurbs to stdout as script iterates")
 args = parser.parse_args()
 
-def pull_elb (sesh, writer): # Elastic Load Balancers
+def pull_elb (sesh): # Elastic Load Balancers
 	client = sesh.client('elb')
 	response = client.describe_load_balancers()
 	for item in response["LoadBalancerDescriptions"]:
@@ -25,7 +27,7 @@ def pull_elb (sesh, writer): # Elastic Load Balancers
 			if "internal" in dns:
 				output(writer,dns)
 
-def pull_alb (sesh, writer): # Application Load Balancers
+def pull_alb (sesh): # Application Load Balancers
 	client = sesh.client('elbv2')
 	response = client.describe_load_balancers()
 	for item in response["LoadBalancers"]:
@@ -37,14 +39,14 @@ def pull_alb (sesh, writer): # Application Load Balancers
 			if "internal" in dns:
 				output(writer,dns)
 
-def pull_eip (sesh, writer): # External Elastic IP Addresses
+def pull_eip (sesh): # External Elastic IP Addresses
 	client = sesh.client('ec2')
 	response = client.describe_addresses()
 	for item in response["Addresses"]:
 		pub = item["PublicIp"]
 		output(writer,pub)
 
-def pull_pip (sesh, writer): # Internal EC2 IP Addresses
+def pull_pip (sesh): # Internal EC2 IP Addresses
 	client = sesh.client('ec2')
 	response = client.describe_instances()
 	for reserv in response["Reservations"]:
@@ -86,17 +88,23 @@ else:
 
 for acct in profiles:
 	for az in regions:
-		print("profile:",acct,"-- region:",az)
+		if args.verbose: print("\nprofile:",acct,"-- region:",az)
 		sesh = boto3.session.Session(region_name = az, profile_name = acct)
 		try:
-			pull_elb(sesh,writer)
-			pull_alb(sesh,writer)
-			if args.public:
-				pull_eip(sesh,writer)
+			if args.loadbalancers:
+				if args.verbose: print("elastic load balancers ----")
+				pull_elb(sesh)
+				if args.verbose: print("application load balancers ----")
+				pull_alb(sesh)
 			else:
-				pull_pip(sesh,writer)
+				if args.public:
+					if args.verbose: print("elastic IPs ----")
+					pull_eip(sesh)
+				else:
+					if args.verbose: print("ec2 private IPs ----")
+					pull_pip(sesh)
 		except ClientError as err:
-			if "InvalidClientTokenId" in str(err):
+			if ("InvalidClientTokenId" in str(err)) or ("AuthFailure" in str(err)):
 				print("invalid credentials")
 				pass
 			else:
