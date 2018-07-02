@@ -16,6 +16,7 @@ These require a certain amount of access [(AWS access credentials)](https://docs
 #### To do:
 - Include option for extracting EC2 tags
 - Include option for extracting built-in EC2 information (AMI ID, VPC ID, attached security groups) 
+- Make the function to extract profiles from authentication files less clunky
 - Create module for pulling useful IAM information
 - Create module for pulling useful S3 information
 - Create module for pulling useful EKS/ECS information
