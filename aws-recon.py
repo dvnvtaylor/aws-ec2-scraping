@@ -3,8 +3,8 @@ from pathlib import Path
 from boto3.session import Session
 from botocore.exceptions import ClientError, ProfileNotFound
 
-regions = Session().get_available_regions('ec2')
-home = str(Path.home())
+regions = Session().get_available_regions('ec2') # gets the availability zones that can be used by the SDK, from the SDK
+home = str(Path.home()) # gets the running user's home dir. This should work across operating systems..
 profiles = []
 contents = ""
 parser = argparse.ArgumentParser(description='perform aws reconnaissance via api scraping')
@@ -57,13 +57,13 @@ def pull_pip (sesh): # Internal EC2 IP Addresses
 			priv = inst.private_ip_address
 			output(writer,priv)
 
-def output (writer,item):
+def output (writer,item): # write the values returned by the "pull_*() queries"
 	if args.output:
 		writer.writerow({'Target': item})
 	else:
 		print(item)
 
-def extractProfiles(home, args, profiles, contents):
+def extractProfiles(home, args, profiles, contents): # parses the authentication file specified, gets list of all profiles in said file
 	cf = open(home+"/.aws/"+args.authfile,"r")
 	if cf.mode == 'r': contents = cf.read(); cf.close()
 	if args.authfile == "config":
@@ -71,17 +71,15 @@ def extractProfiles(home, args, profiles, contents):
 		for i in re.findall("(?:profile).*\w",contents): profiles.append(i.split(' ')[1])
 	elif args.authfile == "credentials":
 		for i in re.findall("\[([a-zA-Z0-9-\s]+)\]",contents): profiles.append(i)
-	else:
-		print("invalid authentication file specified, or this wasn't the first option specified")
 
-if args.profile and args.authfile:
+if args.profile and args.authfile: # check for redundant arguments
 	print("\nif you're specifying profiles, you don't need to include an authentication file. only specify an authentication file if you want this script to extract all of the profiles contained in said file, and loop through them. if you use a profile, its name will be passed to the SDK which will find the corresponding access keys in whatever auth file the profile was defined in\n")
 	exit()
 
-if args.profile:
+if args.profile: # if profiles are explictly passed to the script, use those
 	for i in args.profile:
 		profiles.append(i)
-else:
+else: # if not, use all the profiles found in the authentication file specified
 	try:
 		extractProfiles(home, args, profiles, contents)
 	except FileNotFoundError:
@@ -94,7 +92,7 @@ else:
 		print("specify an authentication file")
 		exit()
 
-if args.output:
+if args.output: # sets up the output file, if that option has been used
 	of = open(args.output,"w",newline='')
 	writer = csv.DictWriter(of, fieldnames=['Target'])
 else:
