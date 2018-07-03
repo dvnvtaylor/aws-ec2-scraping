@@ -21,7 +21,7 @@ def pull_elb (sesh): # Elastic Load Balancers
 	response = client.describe_load_balancers()
 	for item in response["LoadBalancerDescriptions"]:
 		dns = item["DNSName"]
-		if args.external: 
+		if args.external:
 			if "internal" not in dns:
 				output(writer,dns)
 		else:
