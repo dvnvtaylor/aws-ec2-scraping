@@ -12,10 +12,13 @@ parser.add_argument("-a","--authfile", help="specify either 'credentials' or 'co
 parser.add_argument("-e", "--external", action="store_true", help="use to only extract information about objects that are internet-facing/publicly accessible. without this flag, only internal, privately addressed resources will be returned")
 parser.add_argument("-o", "--output", help="use --output <file.csv> to write to a csv file. without this, default output is to stdout")
 parser.add_argument("-lb", "--loadbalancers", action="store_true", help="use this flag to pull dns names from classic and application load balancers")
-parser.add_argument("-v", "--verbose", action="store_true", help="use this flag to output profile, region, and service blurbs to stdout as script iterates")
+parser.add_argument("-v", "--verbose", action="count", help="use this flag to output profile, region, and service blurbs to stdout as script iterates. -vv lists all keys and values found for particular services")
 parser.add_argument("-p", "--profile", nargs='+', help=("specify a profile (or multiple) to use. defaults to all profiles found in selected authentication file"))
 args = parser.parse_args()
-
+if len(sys.argv)==1:
+    parser.print_help(sys.stderr)
+    sys.exit(1)
+    
 def pull_elb (sesh): # Elastic Load Balancers
 	client = sesh.client('elb')
 	response = client.describe_load_balancers()
